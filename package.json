@@ -1,0 +1,13 @@
+{
+  "name": "whoami",
+  "version": "1.0.0",
+  "description": "A modified version of 20Questiosn game",
+  "author": "monkmitrad",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.17.1"
+  }
+}
