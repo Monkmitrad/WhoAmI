@@ -6,7 +6,7 @@ A modified version of the 20Questions game
 # Use Docker
 You can also run this app as a Docker container:
 
-## User Docker Hub
+## Use Docker Hub
 
 On every push to the main branch, a new version of the image will be pushed to Docker Hub.
 
