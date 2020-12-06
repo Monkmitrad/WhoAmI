@@ -1,8 +1,18 @@
 # WhoAmI
 A modified version of the 20Questions game
 
+![ci](https://github.com/Monkmitrad/WhoAmI/workflows/ci/badge.svg)
+
 # Use Docker
 You can also run this app as a Docker container:
+
+## User Docker Hub
+
+On every push to the main branch, a new version of the image will be pushed to Docker Hub.
+
+You can pull the image with `docker pull monkmitrad/whoami`
+
+## Build the image yourself
 
 Step 1: Clone the repo
 
