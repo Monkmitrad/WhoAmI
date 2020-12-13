@@ -5,9 +5,16 @@
   "author": "monkmitrad",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "nodemon server.js"
   },
   "dependencies": {
-    "express": "^4.17.1"
-  }
+    "chalk": "^4.1.0",
+    "compression": "^1.7.4",
+    "express": "^4.17.1",
+    "mongoose": "^5.11.7",
+    "socket.io": "^3.0.4"
+  },
+  "devDependencies": {},
+  "optionalDependencies": {}
 }

@@ -117,3 +117,4 @@ dist
 # Own ignores
 
 config.js
+public/*
