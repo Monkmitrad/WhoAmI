@@ -5,7 +5,7 @@ const express = require('express');
 const fs = require('fs');
 const compression = require('compression');
 const chalk = require('chalk');
-const socketio = require('socket.io');
+const socketio = require('socket.io')
 
 // Constants
 const PORT = 8080;
@@ -16,16 +16,18 @@ const __app_folder = './public';
 const app = express();
 app.use(express.json());
 app.use(compression());
-const server = http.createServer(app);
+const server = http.Server(app);
+
+server.listen(PORT, HOST, function() {
+  console.log(`Running on http://${HOST}:${PORT}`);
+});
 
 // Socket.IO
-const io = require('socket.io')(server);
-
+const io = socketio(server);
 
 // ---- HANDLE IO CONNECTION ---- //
 io.on('connection', function(socket) {
   require('./controllers/io').socketHandler(io, socket);
-  console.log('Connection');
 });
 
 // Routers
@@ -54,6 +56,3 @@ app.all('*', (req, res) => {
   }
 });
 
-server.listen(PORT, HOST, function() {
-  console.log(`Running on http://${HOST}:${PORT}`);
-});

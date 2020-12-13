@@ -3,12 +3,18 @@ const router = new express.Router();
 
 const dbHandler = require('../controllers/mongodb');
 
+router.post('/api/id', async (req, res) => {
+    const id = req.body.id;
+
+    return true;
+});
+
 router.post('/api/add', async (req, res) => {
     const playerName = req.body.playerName;
     const gameID = req.body.gameID;
 
     await dbHandler.add(playerName, gameID).then((id) => {
-        console.log(id),
+        // console.log(id),
         res.send({response: id})
     });
 });
