@@ -10,7 +10,12 @@ router.post('/api/create', async (req, res) => {
 
 router.post('/api/id', async (req, res) => {
     const id = req.body.id;
-    res.send({response: true});
+    if (await dbHandler.check(id)) {
+        res.send({response: true});
+    } else {
+        res.send({response: false});
+    }
+    
 });
 
 router.post('/api/add', async (req, res) => {
@@ -19,7 +24,7 @@ router.post('/api/add', async (req, res) => {
 
     await dbHandler.add(playerName, gameID).then(async (id) => {
         // console.log(id),
-        await update().then(res.send({response: id}));
+        await update(gameID).then(res.send({response: id}));
     });
 });
 
@@ -32,9 +37,11 @@ router.post('/api/players', async (req, res) => {
 router.post('/api/ready', async (req, res) => {
     const id = req.body.id;
     const status = req.body.status;
-    await dbHandler.ready(id, status);
+    const gameID = req.body.gameID;
+    await dbHandler.ready(id, status, gameID);
 
-    await update().then(res.send({response: status}));
+    await update(gameID).then(res.send({response: status}));
+    await checkReady(gameID);
 });
 
 router.post('/api/submission', async (req, res) => {
@@ -46,11 +53,29 @@ router.post('/api/submission', async (req, res) => {
     const submissionText = req.body.submissionText;
 });
 
-async function update() {
-    await dbHandler.list().then((players) => {
+async function update(gameID) {
+    await dbHandler.list(gameID).then((players) => {
         // console.log("Update");
         io.updatePlayers(players);
     });
+}
+
+async function checkReady(gameID) {
+    await dbHandler.list(gameID).then((players) => {
+        if (players.every(isReady)) {
+
+        }
+    })
+}
+
+function isReady(player) {
+    if (player.ready) {
+        console.log(true);
+        return true;
+    } else {
+        console.log(false);
+        return false;
+    }
 }
 
 module.exports = router;

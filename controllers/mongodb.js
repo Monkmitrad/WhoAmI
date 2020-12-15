@@ -77,15 +77,17 @@ async function addPlayer(playerName, gameID) {
 }
 // get all players
 async function listPlayers(gameID) {
-    console.log('GameID: ', gameID);
-    const foundGame = await gameModel.findOne({ 'gameID' : gameID });
-    console.log(foundGame);
-    return foundGame.players;
+    // console.log('GameID: ', gameID);
+    return await gameModel.findOne({ 'gameID' : gameID }).then((foundGame) => foundGame.players);    
 }
 
 // set ready status of player
-async function playerReady(playerID, status) {
-    await playerModel.findByIdAndUpdate(playerID, { ready: status });
+async function playerReady(playerID, status, gameID) {
+    await gameModel.findOne({ 'gameID' : gameID }).then(async (foundGame) => {
+        const player = foundGame.players.id(playerID);
+        player.ready = status;
+        await foundGame.save();
+    });
 }
 
 // checks if gameID exists
