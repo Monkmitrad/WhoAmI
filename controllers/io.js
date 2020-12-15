@@ -5,6 +5,11 @@ const socketHandler = function(_io, socket) {
     io = _io;
 }
 
+function updatePlayers(players) {
+    io.emit('players', players);
+}
+
 module.exports = {
-    socketHandler
+    socketHandler,
+    updatePlayers
 };

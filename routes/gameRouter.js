@@ -1,31 +1,40 @@
 const express = require('express');
 const router = new express.Router();
+const io = require ('../controllers/io');
 
 const dbHandler = require('../controllers/mongodb');
 
+router.post('/api/create', async (req, res) => {
+    await dbHandler.create().then((gameID) => res.send({response: gameID}));
+});
+
 router.post('/api/id', async (req, res) => {
     const id = req.body.id;
-
-    return true;
+    res.send({response: true});
 });
 
 router.post('/api/add', async (req, res) => {
     const playerName = req.body.playerName;
     const gameID = req.body.gameID;
 
-    await dbHandler.add(playerName, gameID).then((id) => {
+    await dbHandler.add(playerName, gameID).then(async (id) => {
         // console.log(id),
-        res.send({response: id})
+        await update().then(res.send({response: id}));
     });
 });
 
-router.get('/api/players', async (req, res) => {
-    res.send(await dbHandler.list());
+router.post('/api/players', async (req, res) => {
+    const gameID = req.body.gameID;
+    console.log('Router', gameID)
+    res.send(await dbHandler.list(gameID));
 });
 
 router.post('/api/ready', async (req, res) => {
-    console.log(req.body);
-    res.send({response: req.body.status});
+    const id = req.body.id;
+    const status = req.body.status;
+    await dbHandler.ready(id, status);
+
+    await update().then(res.send({response: status}));
 });
 
 router.post('/api/submission', async (req, res) => {
@@ -36,5 +45,12 @@ router.post('/api/submission', async (req, res) => {
     const user = req.body.playerName;
     const submissionText = req.body.submissionText;
 });
+
+async function update() {
+    await dbHandler.list().then((players) => {
+        // console.log("Update");
+        io.updatePlayers(players);
+    });
+}
 
 module.exports = router;
