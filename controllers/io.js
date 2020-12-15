@@ -9,7 +9,12 @@ function updatePlayers(players) {
     io.emit('players', players);
 }
 
+function startGame(status) {
+    io.emit('status', status);
+}
+
 module.exports = {
     socketHandler,
-    updatePlayers
+    updatePlayers,
+    startGame
 };
