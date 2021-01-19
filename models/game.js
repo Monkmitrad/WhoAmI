@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const playerScheme = require('./player');
+const playerScheme = require('./player').playerScheme;
 
 const gameScheme = new mongoose.Schema({
     gameID: Number,

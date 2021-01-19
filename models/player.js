@@ -8,4 +8,9 @@ const playerScheme = new mongoose.Schema({
     jwt: String
 });
 
-module.exports = playerScheme;
+const playerModel = new mongoose.model('Player', playerScheme, 'players');
+
+module.exports = {
+    playerScheme,
+    playerModel
+};

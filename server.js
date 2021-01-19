@@ -42,6 +42,15 @@ io.on('connection', function(socket) {
 
 // Routers
 
+// catch bad json
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+      console.error(err);
+      return res.status(400).send({response: err.message }); // Bad request
+  }
+  next();
+});
+
 app.all('*', async (req, res, next) => {
   if (req.header('postman-token')) {
     res.status(403).json({response: 'Forbidden'});

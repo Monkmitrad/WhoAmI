@@ -14,7 +14,7 @@ db.once('open', function () {
 });
 
 const gameModel = require('../models/game');
-const playerModel = require('../models/player');
+const playerModel = require('../models/player').playerModel;
 const jwtHandler = require('./jwt');
 
 
@@ -50,6 +50,7 @@ async function loginPlayer(gameID, playerName) {
     });
     game.players.push(player);
     await game.save();
+    return player.jwt;
 }
 
 /**
@@ -116,7 +117,7 @@ async function checkGameID(gameID) {
 }
 
 async function checkPlayerName(gameID, playerName){
-    const game = getGame(gameID);
+    const game = await getGame(gameID);
     if (await game.players.find((_player) => _player.name === playerName)) {
         // player already exists
         return false;
@@ -126,11 +127,17 @@ async function checkPlayerName(gameID, playerName){
     }
 }
 
+async function checkGameStatus(gameID) {
+    const game = await getGame(gameID);
+    return game.gameStatus;
+}
+
 module.exports = {
     create: createGame,
     login: loginPlayer,
     ready: playerReady,
     submit: submitEntry,
     id: checkGameID,
-    name: checkPlayerName
+    name: checkPlayerName,
+    status: checkGameStatus
 }
