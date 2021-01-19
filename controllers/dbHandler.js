@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
 const config = require('../config');
-const gameModel = require('../models/game');
 
 mongoose.connect(`mongodb://${config.get("db_host")}:${config.get("db_port")}/${config.get("db_name")}`, {
 	useNewUrlParser: true,
@@ -14,7 +13,7 @@ db.once('open', function () {
 	console.log('Connection to MongoDB established');
 });
 
-const game = require('../models/game');
+const gameModel = require('../models/game');
 const playerModel = require('../models/player');
 const jwtHandler = require('./jwt');
 
@@ -31,6 +30,7 @@ async function createGame() {
         gameStatus: false
     });
     await newGame.save();
+    return gameID;
 }
 
 /**
@@ -60,7 +60,7 @@ async function loginPlayer(gameID, playerName) {
  */
 async function playerReady(gameID, playerName, readyStatus) {
     const game = await getGame(gameID);
-    const player = game.players.find((_player) => _player.name === playerName);
+    const player = await game.players.find((_player) => _player.name === playerName);
     player.ready = readyStatus;
     await game.save();
 }
@@ -73,7 +73,7 @@ async function playerReady(gameID, playerName, readyStatus) {
  */
 async function submitEntry(gameID, playerName, entry) {
     const game = await getGame(gameID);
-    const player = game.players.find((_player) => _player.name === playerName);
+    const player = await game.players.find((_player) => _player.name === playerName);
     player.submissionText = entry;
     await game.save();
 }
@@ -99,12 +99,38 @@ function generateGameID() {
  * @param {Number} gameID 
  */
 async function getGame(gameID) {
+    return await gameModel.findOne({gameID});
+}
 
+/**
+ * check if game with gameID exists
+ * @param {Number} gameID 
+ */
+async function checkGameID(gameID) {
+    if (await getGame(gameID)) {
+        return true;
+    } else {
+        return false
+    }
+
+}
+
+async function checkPlayerName(gameID, playerName){
+    const game = getGame(gameID);
+    if (await game.players.find((_player) => _player.name === playerName)) {
+        // player already exists
+        return false;
+    } else {
+        // playerName is free
+        return true;
+    }
 }
 
 module.exports = {
     create: createGame,
     login: loginPlayer,
     ready: playerReady,
-    submit: submitEntry
+    submit: submitEntry,
+    id: checkGameID,
+    name: checkPlayerName
 }
