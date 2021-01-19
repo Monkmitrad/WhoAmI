@@ -1,6 +1,7 @@
 const express = require('express');
 const router = new express.Router();
 const io = require('../controllers/io');
+const db = require('../controllers/dbHandler');
 
 const baseURL = '/api/';
 
@@ -9,7 +10,7 @@ const baseURL = '/api/';
  */
 router.post(baseURL + 'create', async (req, res) => {
 // trigger game creation in db
-
+    
 // return gameID on success
 });
 

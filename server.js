@@ -53,7 +53,11 @@ app.all('*', async (req, res, next) => {
 const gameRouter = require('./routes/gameRouter');
 app.use(gameRouter);
 
-app.get('/api/*', (req, res) => {
+app.all('/api/', (req, res) => {
+  res.json({response: 'This API endpoint does not exist'});
+});
+
+app.all('/api/*', (req, res) => {
   res.json({response: 'This API endpoint does not exist'});
 });
 
