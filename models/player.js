@@ -4,7 +4,8 @@ const playerScheme = new mongoose.Schema({
     name: String,
     assignedPlayer: String,
     submissionText: String,
-    ready: Boolean
+    ready: Boolean,
+    jwt: String
 });
 
 module.exports = playerScheme;

@@ -10,7 +10,9 @@ const baseURL = '/api/';
  */
 router.post(baseURL + 'create', async (req, res) => {
 // trigger game creation in db
-    
+
+// trigger socket creation in io
+
 // return gameID on success
 });
 
