@@ -146,7 +146,7 @@ async function checkAssignedPlayer(token, gameID, playerName) {
 
 async function checkReadyStatus(gameID) {
     const game = await getGame(gameID);
-    if (game.players.length >= 1) {
+    if (game.players.length >= 2) {
         return game.players.every((element) => {
             console.log(element.ready);
             return element.ready;
@@ -160,7 +160,53 @@ async function checkReadyStatus(gameID) {
 async function startGame(gameID) {
     const game = await getGame(gameID);
     game.gameStatus = true;
+    const assignedArray = randomAssignment(game.players);
+    for (let index = 0; index < game.players.length; index++) {
+        const element = game.players[index];
+        element.assignedPlayer = assignedArray[index];
+    }
     await game.save();
+}
+
+function randomAssignment(players) {
+    const copyArray = [...players];
+	const returnArray = new Array(players.length);
+
+	while (copyArray.length > 0) {
+		if (copyArray.length === 1) {
+			// uneven playercount
+			console.log('Uneven');
+			const changedPlayer = copyArray[0];
+			returnArray[players.indexOf(copyArray[0])] = returnArray[0];
+			returnArray[0] = changedPlayer.name;
+
+			return returnArray;
+
+		}
+		const index = getRandomExcept(copyArray.length, 0);
+
+		const randomPlayer = copyArray[index];
+		returnArray[players.indexOf(copyArray[0])] = randomPlayer.name;
+		returnArray[players.indexOf(randomPlayer)] = copyArray[0].name;
+		copyArray.splice(index, 1);
+		copyArray.shift();
+	}
+	return returnArray;
+}
+
+function getRandomExcept (length, exceptIndex) {
+    if (length <= 0) {
+		return null;
+	} else if (length === 1) {
+		if (0 === exceptIndex) return null;
+	}
+	var n = Math.floor(Math.random() * length);
+
+	if (n === except) {
+		// n = (n + Math.floor(Math.random() * length)) % length;
+		return getRandomExcept(length, exceptIndex);
+	}
+	return n;
 }
 
 module.exports = {
