@@ -1,6 +1,6 @@
 const express = require('express');
 const router = new express.Router();
-const { body, validationResult } = require('express-validator');
+const { body, header, validationResult } = require('express-validator');
 
 const io = require('../controllers/io');
 const dbHandler = require('../controllers/dbHandler');
@@ -23,7 +23,6 @@ router.post(baseURL + 'create', async (req, res) => {
     } else {
         res.status(500).json({response: 'Internal server error on creation'});
     }
-	
 });
 
 /**
@@ -47,7 +46,7 @@ router.post(baseURL + 'login',[
                 const jwt = await dbHandler.login(gameID, playerName);
                 if (jwt) {
                     // on success return jwt and socket id
-                    res.json({'jwt': jwt});
+                    res.json({response: jwt});
 
                     // update game via socket
                 } else {
@@ -70,7 +69,8 @@ router.post(baseURL + 'login',[
 router.post(baseURL + 'ready', [
     body('gameID').exists().isNumeric().trim().escape(),
     body('playerName').exists().isLength({min: 3, max: 12}).trim().escape(),
-    body('status').exists().isBoolean().trim().escape()
+    body('status').exists().isBoolean().trim().escape(),
+    header('authorization').exists().isString().trim()
 ], async (req, res) => {
     try {
         validationResult(req).throw();
@@ -80,41 +80,78 @@ router.post(baseURL + 'ready', [
         const status = req.body.status;
 
         // check jwt
-        if (jwtHandler.checkToken('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJnYW1lIjoiNDQ1OCIsIm5hbWUiOiJUZXN0MyIsImlhdCI6MTYxMTA3NDA2MSwiZXhwIjoxNjExMDgxMjYxfQ.Wl_tWS_ds2DAKgcDvv7FvktHVh1P4iwtAF_wfTjduWk')) {
+        if (jwtHandler.checkToken(req.header('Authorization'))) {
             // on success check gameID
             if (await dbHandler.id(gameID)) {
-                // on success check game status (has to be false)
-                if (await dbHandler.status(gameID) === false) {
-                    // on success trigger save in db
-                    await dbHandler.ready(gameID, playerName, status);
-                    // on success update game via socket
-                    // trigger ready check for all players
-                    res.json({response: 'Ready status set to ' + status});
+                // on success check if token matches gameID and playerName
+                if (jwtHandler.verifyIdentity(req.header('Authorization'), gameID, playerName)) {
+                    // on success check game status (has to be false)
+                    if (await dbHandler.status(gameID) === false) {
+                        // on success trigger save in db
+                        await dbHandler.ready(gameID, playerName, status);
+                        // on success update game via socket
+                        // trigger ready check for all players
+                        res.json({response: 'Ready status set to ' + status});
+                    } else {
+                        res.status(400).json({response: 'Game has already started'});
+                    }
                 } else {
-                    res.status(400).json({response: 'Game has already started'});
+                    res.status(400).json({response: 'Parameters do not match'});
                 }
             } else {
                 res.status(400).json({response: 'Invalid gameID'});
             }
-            
         } else {
             res.status(401).json({response: 'Invalid JWT'});
         }
     } catch (err) {
         res.status(400).json({response: err.errors[0].param + ' not valid'});
     }
-    
-	
 });
 
 /**
  * submit entry
  */
-router.post(baseURL + 'submit', async (req, res) => {
-	// check jwt
-	// on success check gameID
-	// on success check game status (has to be true)
-	// on success check validity of submission text
+router.post(baseURL + 'submit',[
+    body('gameID').exists().isNumeric().trim().escape(),
+    body('playerName').exists().isLength({min: 3, max: 12}).trim().escape(),
+    body('entry').exists().notEmpty().trim().escape()
+], async (req, res) => {
+
+    try {
+        validationResult(req).throw();
+
+        const gameID = req.body.gameID;
+        const playerName = req.body.playerName;
+        const entry = req.body.entry;
+
+        // check jwt
+        if (jwtHandler.checkToken(req.header('Authorization'))) {
+            // on success check gameID
+            if (await dbHandler.id(gameID)) {
+                // on success check if token matches gameID and assignedPlayerName
+                if (dbHandler.assigned(req.header('Authorization'), gameID, playerName)) {
+                    // on success check game status (has to be true)
+                    if (await dbHandler.status(gameID) === true) {
+                        // on success trigger save in db
+                        await dbHandler.submit(gameID, playerName, entry);
+                        // on success update game via socket
+                    } else {
+                        res.status(400).json({response: 'Game has not started yet'});
+                    }
+                } else {
+                    res.status(400).json({response: 'Parameters do not match'});
+                }
+            } else {
+
+            }
+            
+        } else {
+
+        }
+    } catch (err) {
+        res.status(400).json({response: err.errors[0].param + ' not valid'});
+    }	
 });
 
 module.exports = router;

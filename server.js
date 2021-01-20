@@ -6,7 +6,6 @@ const fs = require('fs');
 const compression = require('compression');
 const chalk = require('chalk');
 const socketio = require('socket.io');
-const jwt = require("jsonwebtoken");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 
@@ -57,6 +56,13 @@ app.all('*', async (req, res, next) => {
   } else {
     next();
   }
+});
+
+app.all('/api/*', (req, res, next) => {
+  if(req.header('Authorization')) {
+    req.headers['authorization'] = req.header('Authorization').replace('Bearer ', '');
+  }
+  next();
 });
 
 const gameRouter = require('./routes/gameRouter');

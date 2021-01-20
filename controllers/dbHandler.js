@@ -132,6 +132,18 @@ async function checkGameStatus(gameID) {
     return game.gameStatus;
 }
 
+async function checkAssignedPlayer(token, gameID, playerName) {
+    const game = await getGame(gameID);
+    if (jwtHandler.verifyIdentity(token, gameID, playerName)) {
+        const player = await game.players.find((_player) => _player.name === jwtHandler.getJWTName(token));
+        if (player.assignedPlayer === playerName) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+}
+
 module.exports = {
     create: createGame,
     login: loginPlayer,
@@ -139,5 +151,6 @@ module.exports = {
     submit: submitEntry,
     id: checkGameID,
     name: checkPlayerName,
-    status: checkGameStatus
+    status: checkGameStatus,
+    assigned: checkAssignedPlayer
 }
