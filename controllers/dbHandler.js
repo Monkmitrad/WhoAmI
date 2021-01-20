@@ -16,6 +16,7 @@ db.once('open', function () {
 const gameModel = require('../models/game');
 const playerModel = require('../models/player').playerModel;
 const jwtHandler = require('./jwt');
+const ioHandler = require('./io');
 
 
 /**
@@ -166,6 +167,18 @@ async function startGame(gameID) {
         element.assignedPlayer = assignedArray[index];
     }
     await game.save();
+    ioHandler.updatePlayers(gameID);
+}
+
+async function gameData(gameID, playerName) {
+    const game = await getGame(gameID);
+    game.players.forEach(player => {
+        player.jwt = '';
+        if (player.name === playerName) {
+            player.submissionText = 'Hidden to yourself';
+        }
+    });
+    return game;
 }
 
 function randomAssignment(players) {
@@ -219,5 +232,6 @@ module.exports = {
     status: checkGameStatus,
     assigned: checkAssignedPlayer,
     check: checkReadyStatus,
-    start: startGame
+    start: startGame,
+    data: gameData
 }

@@ -16,8 +16,6 @@ router.post(baseURL + 'create', async (req, res) => {
 	// trigger game creation in db
 	const gameID = await dbHandler.create();
 
-	// trigger socket creation in io
-
     // return gameID on success
     if (gameID) {
         res.json({ response: gameID });
@@ -48,8 +46,8 @@ router.post(baseURL + 'login',[
                 if (jwt) {
                     // on success return jwt and socket id
                     res.json({response: jwt});
-
                     // update game via socket
+                    io.updatePlayers(gameID);
                 } else {
                     res.status(500).json({response: 'Internal server error on login'});
                 }
@@ -90,8 +88,9 @@ router.post(baseURL + 'ready', [
                     if (await dbHandler.status(gameID) === false) {
                         // on success trigger save in db
                         await dbHandler.ready(gameID, playerName, status);
-                        // on success update game via socket
                         res.json({response: 'Ready status set to ' + status});
+                        // on success update game via socket
+                        io.updatePlayers(gameID);
                         // trigger ready check for all players
                         if (await dbHandler.check(gameID)) {
                             // all players ready, start game
@@ -123,7 +122,6 @@ router.post(baseURL + 'submit',[
     body('entry').exists().notEmpty().trim().escape(),
     header('authorization').exists().isString().trim()
 ], async (req, res) => {
-
     try {
         validationResult(req).throw();
 
@@ -142,6 +140,7 @@ router.post(baseURL + 'submit',[
                         // on success trigger save in db
                         await dbHandler.submit(gameID, playerName, entry);
                         // on success update game via socket
+                        io.updatePlayers(gameID);
                     } else {
                         res.status(400).json({response: 'Game has not started yet'});
                     }
@@ -157,6 +156,31 @@ router.post(baseURL + 'submit',[
     } catch (err) {
         res.status(400).json({response: err.errors[0].param + ' not valid'});
     }	
+});
+
+router.get(baseURL + 'data', [
+    header('authorization').exists().isString().trim()
+], async (req, res) => {
+    try {
+        validationResult(req).throw();
+        
+        // check JWT
+        if (jwtHandler.checkToken(req.header('Authorization'))) {
+            const playerName = jwtHandler.getJWTName(req.header('Authorization'));
+            const gameID = jwtHandler.getJWTID(req.header('Authorization'));
+            // on success check gameID
+            if (await dbHandler.id(gameID)) {
+                // on success return personalized gameData
+                res.json({response: await dbHandler.data(gameID, playerName)});
+            } else {
+                res.status(400).json({response: 'Invalid gameID'});
+            }
+        } else {
+            res.status(401).json({response: 'Invalid JWT'});
+        }
+    } catch (err) {
+        res.status(400).json({response: err.errors[0].param + ' not valid'});
+    }
 });
 
 module.exports = router;

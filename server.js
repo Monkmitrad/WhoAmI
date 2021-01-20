@@ -33,7 +33,6 @@ server.listen(config.get('port'), config.get('host'), function() {
 
 // Socket.IO
 const io = socketio(server);
-
 // ---- HANDLE IO CONNECTION ---- //
 io.on('connection', function(socket) {
   require('./controllers/io').socketHandler(io, socket);

@@ -40,9 +40,14 @@ function getJWTName(token) {
     return jwt.verify(token, config.get('jwt_secret')).name;
 }
 
+function getJWTID(token) {
+    return jwt.verify(token, config.get('jwt_secret')).game;
+}
+
 module.exports = {
     newToken,
     checkToken,
     verifyIdentity,
-    getJWTName
+    getJWTName,
+    getJWTID
 }
