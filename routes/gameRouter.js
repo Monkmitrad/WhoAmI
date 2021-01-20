@@ -5,8 +5,9 @@ const { body, header, validationResult } = require('express-validator');
 const io = require('../controllers/io');
 const dbHandler = require('../controllers/dbHandler');
 const jwtHandler = require('../controllers/jwt');
+const config = require('../config');
 
-const baseURL = '/api/';
+const baseURL = config.get('api_baseURL');
 
 /**
  * create new game
@@ -90,8 +91,12 @@ router.post(baseURL + 'ready', [
                         // on success trigger save in db
                         await dbHandler.ready(gameID, playerName, status);
                         // on success update game via socket
-                        // trigger ready check for all players
                         res.json({response: 'Ready status set to ' + status});
+                        // trigger ready check for all players
+                        if (await dbHandler.check(gameID)) {
+                            // all players ready, start game
+                            await dbHandler.start(gameID);
+                        }
                     } else {
                         res.status(400).json({response: 'Game has already started'});
                     }
@@ -115,7 +120,8 @@ router.post(baseURL + 'ready', [
 router.post(baseURL + 'submit',[
     body('gameID').exists().isNumeric().trim().escape(),
     body('playerName').exists().isLength({min: 3, max: 12}).trim().escape(),
-    body('entry').exists().notEmpty().trim().escape()
+    body('entry').exists().notEmpty().trim().escape(),
+    header('authorization').exists().isString().trim()
 ], async (req, res) => {
 
     try {
@@ -143,11 +149,10 @@ router.post(baseURL + 'submit',[
                     res.status(400).json({response: 'Parameters do not match'});
                 }
             } else {
-
+                res.status(400).json({response: 'Invalid gameID'});
             }
-            
         } else {
-
+            res.status(401).json({response: 'Invalid JWT'});
         }
     } catch (err) {
         res.status(400).json({response: err.errors[0].param + ' not valid'});

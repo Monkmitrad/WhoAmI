@@ -144,6 +144,25 @@ async function checkAssignedPlayer(token, gameID, playerName) {
     }
 }
 
+async function checkReadyStatus(gameID) {
+    const game = await getGame(gameID);
+    if (game.players.length >= 1) {
+        return game.players.every((element) => {
+            console.log(element.ready);
+            return element.ready;
+        });
+    } else {
+        return false;
+    }
+    
+}
+
+async function startGame(gameID) {
+    const game = await getGame(gameID);
+    game.gameStatus = true;
+    await game.save();
+}
+
 module.exports = {
     create: createGame,
     login: loginPlayer,
@@ -152,5 +171,7 @@ module.exports = {
     id: checkGameID,
     name: checkPlayerName,
     status: checkGameStatus,
-    assigned: checkAssignedPlayer
+    assigned: checkAssignedPlayer,
+    check: checkReadyStatus,
+    start: startGame
 }

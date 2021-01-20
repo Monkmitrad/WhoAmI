@@ -58,6 +58,7 @@ app.all('*', async (req, res, next) => {
   }
 });
 
+// rewrite bearer token
 app.all('/api/*', (req, res, next) => {
   if(req.header('Authorization')) {
     req.headers['authorization'] = req.header('Authorization').replace('Bearer ', '');
