@@ -5,17 +5,24 @@ const socketHandler = function(_io, socket) {
     io = _io;
     
     if (socket.handshake.query.gameID) {
-        socket.join(socket.handshake.query.gameID);
-        console.log('New socket connection for game: ', socket.handshake.query.gameID);
+        gameID = socket.handshake.query.gameID;
+        if (gameID != 0) {
+            socket.join(gameID);
+            socket.emit('refresh');
+            console.log('New socket connection for game: ', gameID);
+        }
+    } else {
+        console.log('No gameID');
     }
-
-    socket.on('test', (text) => {
-        console.log(text);
-    });
 }
 
 function updatePlayers(gameID) {
-    io.to(gameID).emit('refresh');
+    if (!isNaN(gameID)) {
+        // console.log(io ? true : false);
+        if (io) {
+            io.to(gameID).emit('refresh');
+        }
+    }
 }
 
 module.exports = {

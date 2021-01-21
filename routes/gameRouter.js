@@ -2,7 +2,7 @@ const express = require('express');
 const router = new express.Router();
 const { body, header, validationResult } = require('express-validator');
 
-const io = require('../controllers/io');
+const ioHandler = require('../controllers/io');
 const dbHandler = require('../controllers/dbHandler');
 const jwtHandler = require('../controllers/jwt');
 const config = require('../config');
@@ -39,26 +39,35 @@ router.post(baseURL + 'login',[
 
         // check gameID
         if (await dbHandler.id(gameID)) {
-            // on success check validity of playerName
-            if (await dbHandler.name(gameID, playerName)) {
-                // on success trigger player and jwt creation in db
-                const jwt = await dbHandler.login(gameID, playerName);
-                if (jwt) {
-                    // on success return jwt and socket id
-                    res.json({response: jwt});
-                    // update game via socket
-                    io.updatePlayers(gameID);
+            // on success check game status (has to be false)
+            if (await dbHandler.status(gameID) === false) {
+                // on success check validity of playerName
+                if (await dbHandler.name(gameID, playerName)) {
+                    // on success trigger player and jwt creation in db
+                    const jwt = await dbHandler.login(gameID, playerName);
+                    if (jwt) {
+                        // on success return jwt and socket id
+                        res.json({response: jwt});
+                        // update game via socket
+                        ioHandler.updatePlayers(gameID);
+                    } else {
+                        res.status(500).json({response: 'Internal server error on login'});
+                    }
                 } else {
-                    res.status(500).json({response: 'Internal server error on login'});
+                    res.status(400).json({response: 'Username already taken'});
                 }
             } else {
-                res.status(400).json({response: 'Username already taken'});
+                res.status(400).json({response: 'Game has already started'});
             }
         } else {
             res.status(400).json({response: 'Invalid gameID'});
         }
     } catch (err) {
-        res.status(400).json({response: err.errors[0].param + ' not valid'});
+        if (err.errors) {
+            res.status(400).json({response: err.errors[0].param + ' not valid'});
+        } else {
+            res.status(400).json({response: err});
+        }
     }    
 });
 
@@ -90,11 +99,12 @@ router.post(baseURL + 'ready', [
                         await dbHandler.ready(gameID, playerName, status);
                         res.json({response: 'Ready status set to ' + status});
                         // on success update game via socket
-                        io.updatePlayers(gameID);
+                        ioHandler.updatePlayers(gameID);
                         // trigger ready check for all players
                         if (await dbHandler.check(gameID)) {
                             // all players ready, start game
                             await dbHandler.start(gameID);
+                            ioHandler.updatePlayers(gameID);
                         }
                     } else {
                         res.status(400).json({response: 'Game has already started'});
@@ -109,7 +119,11 @@ router.post(baseURL + 'ready', [
             res.status(401).json({response: 'Invalid JWT'});
         }
     } catch (err) {
-        res.status(400).json({response: err.errors[0].param + ' not valid'});
+        if (err.errors) {
+            res.status(400).json({response: err.errors[0].param + ' not valid'});
+        } else {
+            res.status(400).json({response: err});
+        }
     }
 });
 
@@ -140,7 +154,8 @@ router.post(baseURL + 'submit',[
                         // on success trigger save in db
                         await dbHandler.submit(gameID, playerName, entry);
                         // on success update game via socket
-                        io.updatePlayers(gameID);
+                        ioHandler.updatePlayers(gameID);
+                        res.json({response: true});
                     } else {
                         res.status(400).json({response: 'Game has not started yet'});
                     }
@@ -154,7 +169,11 @@ router.post(baseURL + 'submit',[
             res.status(401).json({response: 'Invalid JWT'});
         }
     } catch (err) {
-        res.status(400).json({response: err.errors[0].param + ' not valid'});
+        if (err.errors) {
+            res.status(400).json({response: err.errors[0].param + ' not valid'});
+        } else {
+            res.status(400).json({response: err});
+        }
     }	
 });
 
@@ -179,8 +198,12 @@ router.get(baseURL + 'data', [
             res.status(401).json({response: 'Invalid JWT'});
         }
     } catch (err) {
-        res.status(400).json({response: err.errors[0].param + ' not valid'});
-    }
+        if (err.errors) {
+            res.status(400).json({response: err.errors[0].param + ' not valid'});
+        } else {
+            res.status(400).json({response: err});
+        }
+    }	
 });
 
 module.exports = router;

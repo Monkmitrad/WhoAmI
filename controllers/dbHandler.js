@@ -16,7 +16,6 @@ db.once('open', function () {
 const gameModel = require('../models/game');
 const playerModel = require('../models/player').playerModel;
 const jwtHandler = require('./jwt');
-const ioHandler = require('./io');
 
 
 /**
@@ -92,7 +91,7 @@ function generateGameID() {
         return Number(id);
     } else {
         // 3 digit number, for now just add 1000 as the 4th digit
-        return id + 1000;
+        return Number(id) + 1000;
     }
 }
 
@@ -149,7 +148,6 @@ async function checkReadyStatus(gameID) {
     const game = await getGame(gameID);
     if (game.players.length >= 2) {
         return game.players.every((element) => {
-            console.log(element.ready);
             return element.ready;
         });
     } else {
@@ -161,13 +159,13 @@ async function checkReadyStatus(gameID) {
 async function startGame(gameID) {
     const game = await getGame(gameID);
     game.gameStatus = true;
+
     const assignedArray = randomAssignment(game.players);
     for (let index = 0; index < game.players.length; index++) {
         const element = game.players[index];
         element.assignedPlayer = assignedArray[index];
     }
     await game.save();
-    ioHandler.updatePlayers(gameID);
 }
 
 async function gameData(gameID, playerName) {
@@ -215,7 +213,7 @@ function getRandomExcept (length, exceptIndex) {
 	}
 	var n = Math.floor(Math.random() * length);
 
-	if (n === except) {
+	if (n === exceptIndex) {
 		// n = (n + Math.floor(Math.random() * length)) % length;
 		return getRandomExcept(length, exceptIndex);
 	}
