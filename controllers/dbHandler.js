@@ -116,6 +116,11 @@ async function checkGameID(gameID) {
 
 }
 
+/**
+ * 
+ * @param {Number} gameID 
+ * @param {String} playerName 
+ */
 async function checkPlayerName(gameID, playerName){
     const game = await getGame(gameID);
     if (await game.players.find((_player) => _player.name === playerName)) {
@@ -127,11 +132,21 @@ async function checkPlayerName(gameID, playerName){
     }
 }
 
+/**
+ * 
+ * @param {Number} gameID 
+ */
 async function checkGameStatus(gameID) {
     const game = await getGame(gameID);
     return game.gameStatus;
 }
 
+/**
+ * 
+ * @param {String} token 
+ * @param {Number} gameID 
+ * @param {String} playerName 
+ */
 async function checkAssignedPlayer(token, gameID, playerName) {
     const game = await getGame(gameID);
     if (jwtHandler.verifyIdentity(token, gameID, playerName)) {
@@ -144,6 +159,10 @@ async function checkAssignedPlayer(token, gameID, playerName) {
     }
 }
 
+/**
+ * 
+ * @param {Number} gameID 
+ */
 async function checkReadyStatus(gameID) {
     const game = await getGame(gameID);
     if (game.players.length >= 2) {
@@ -156,6 +175,17 @@ async function checkReadyStatus(gameID) {
     
 }
 
+async function checkSubmitStatus(gameID) {
+    const game = await getGame(gameID);
+    return game.players.every((element) => {
+        return element.submissionText;
+    });
+}
+
+/**
+ * 
+ * @param {Number} gameID 
+ */
 async function startGame(gameID) {
     const game = await getGame(gameID);
     game.gameStatus = true;
@@ -168,6 +198,11 @@ async function startGame(gameID) {
     await game.save();
 }
 
+/**
+ * 
+ * @param {Number} gameID 
+ * @param {String} playerName 
+ */
 async function gameData(gameID, playerName) {
     const game = await getGame(gameID);
     game.players.forEach(player => {
@@ -179,6 +214,14 @@ async function gameData(gameID, playerName) {
     return game;
 }
 
+/**
+ * @typedef {Object} player
+ * @property {String} playerName
+ * @property {String} assignedPlayer
+ * @property {String} submissionText
+ * @property {boolean} ready
+ * @param {[player]} players 
+ */
 function randomAssignment(players) {
     const copyArray = [...players];
 	const returnArray = new Array(players.length);
@@ -205,6 +248,11 @@ function randomAssignment(players) {
 	return returnArray;
 }
 
+/**
+ * 
+ * @param {Number} length 
+ * @param {Number} exceptIndex 
+ */
 function getRandomExcept (length, exceptIndex) {
     if (length <= 0) {
 		return null;
@@ -231,5 +279,6 @@ module.exports = {
     assigned: checkAssignedPlayer,
     check: checkReadyStatus,
     start: startGame,
-    data: gameData
+    data: gameData,
+    guess: checkSubmitStatus
 }

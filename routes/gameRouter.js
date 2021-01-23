@@ -156,6 +156,12 @@ router.post(baseURL + 'submit',[
                         // on success update game via socket
                         ioHandler.updatePlayers(gameID);
                         res.json({response: true});
+                        // trigger submit check for all players
+                        if (await dbHandler.guess(gameID)) {
+                            // all players submitted, start guessing
+                            ioHandler.startPlayers(gameID);
+                            console.log('Start guessing');
+                        }
                     } else {
                         res.status(400).json({response: 'Game has not started yet'});
                     }

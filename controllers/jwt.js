@@ -2,6 +2,11 @@ const jwt = require('jsonwebtoken');
 
 const config = require('../config');
 
+/**
+ * 
+ * @param {Number} gameID 
+ * @param {String} playerName 
+ */
 function newToken(gameID, playerName) {
     const newToken = jwt.sign({
         game: gameID,
@@ -10,6 +15,10 @@ function newToken(gameID, playerName) {
     return newToken;
 }
 
+/**
+ * 
+ * @param {String} token 
+ */
 function checkToken(token) {
     try {
         jwt.verify(token, config.get('jwt_secret'));
@@ -19,6 +28,12 @@ function checkToken(token) {
     }
 }
 
+/**
+ * 
+ * @param {String} token 
+ * @param {Number} gameID 
+ * @param {String} playerName 
+ */
 function verifyIdentity(token, gameID, playerName) {
     try {
         if (checkToken(token)) {
@@ -36,10 +51,18 @@ function verifyIdentity(token, gameID, playerName) {
     }
 }
 
+/**
+ * 
+ * @param {String} token 
+ */
 function getJWTName(token) {
     return jwt.verify(token, config.get('jwt_secret')).name;
 }
 
+/**
+ * 
+ * @param {String} token 
+ */
 function getJWTID(token) {
     return jwt.verify(token, config.get('jwt_secret')).game;
 }

@@ -1,5 +1,10 @@
 let io = undefined;
 
+/**
+ * 
+ * @param {*} _io 
+ * @param {*} socket 
+ */
 const socketHandler = function(_io, socket) {
     // console.log('New Socket connection');
     io = _io;
@@ -16,6 +21,10 @@ const socketHandler = function(_io, socket) {
     }
 }
 
+/**
+ * 
+ * @param {Number} gameID 
+ */
 function updatePlayers(gameID) {
     if (!isNaN(gameID)) {
         // console.log(io ? true : false);
@@ -25,7 +34,14 @@ function updatePlayers(gameID) {
     }
 }
 
+function startPlayers(gameID) {
+    if (io) {
+        io.to(gameID).emit('start');
+    }
+}
+
 module.exports = {
     socketHandler,
     updatePlayers,
+    startPlayers
 };
