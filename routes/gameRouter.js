@@ -183,6 +183,9 @@ router.post(baseURL + 'submit',[
     }	
 });
 
+/**
+ * return gameData for player
+ */
 router.get(baseURL + 'data', [
     header('authorization').exists().isString().trim()
 ], async (req, res) => {
@@ -210,6 +213,43 @@ router.get(baseURL + 'data', [
             res.status(400).json({response: err});
         }
     }	
+});
+
+/**
+ * disconnect player from game
+ */
+router.post(baseURL + 'disconnect', [
+    body('gameID').exists().isNumeric().trim().escape(),
+    body('playerName').exists().isLength({min: 3, max: 12}).trim().escape(),
+    header('authorization').exists().isString().trim()
+], async (req, res) => {
+    try {
+        validationResult(req).throw();
+
+        // check JWT
+        if (jwtHandler.checkToken(req.header('Authorization'))) {
+            const playerName = jwtHandler.getJWTName(req.header('Authorization'));
+            const gameID = jwtHandler.getJWTID(req.header('Authorization'));
+            // on success check gameID
+            if (await dbHandler.id(gameID)) {
+                // on success return personalized gameData
+                res.json({response: await dbHandler.disconnect(gameID, playerName)});
+                console.log('Disconnected: ', playerName);
+                // on success update players via socket
+                ioHandler.updatePlayers(gameID);
+            } else {
+                res.status(400).json({response: 'Invalid gameID'});
+            }
+        } else {
+            res.status(401).json({response: 'Invalid JWT'});
+        }
+    } catch (err) {
+        if (err.errors) {
+            res.status(400).json({response: err.errors[0].param + ' not valid'});
+        } else {
+            res.status(400).json({response: err});
+        }
+    }
 });
 
 module.exports = router;

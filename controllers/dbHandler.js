@@ -215,6 +215,22 @@ async function gameData(gameID, playerName) {
 }
 
 /**
+ * 
+ * @param {Number} gameID 
+ * @param {String} playerName 
+ */
+async function disconnectPlayer(gameID, playerName) {
+    const game = await getGame(gameID);
+    const player = await game.players.find((_player) => _player.name === playerName);
+    const playerIndex = game.players.indexOf(player);
+    if (player) {
+        game.players.splice(playerIndex, 1);
+    }
+    await game.save();
+    return 'Disconnected';
+}
+
+/**
  * @typedef {Object} player
  * @property {String} playerName
  * @property {String} assignedPlayer
@@ -280,5 +296,6 @@ module.exports = {
     check: checkReadyStatus,
     start: startGame,
     data: gameData,
-    guess: checkSubmitStatus
+    guess: checkSubmitStatus,
+    disconnect: disconnectPlayer
 }

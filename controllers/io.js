@@ -5,32 +5,34 @@ let io = undefined;
  * @param {*} _io 
  * @param {*} socket 
  */
-const socketHandler = function(_io, socket) {
+function socketHandler(_io, socket) {
     // console.log('New Socket connection');
     io = _io;
     
-    if (socket.handshake.query.gameID) {
-        gameID = socket.handshake.query.gameID;
-        if (gameID != 0) {
-            socket.join(gameID);
-            socket.emit('refresh');
-            console.log('New socket connection for game: ', gameID);
+    io.on('connection', (socket) => {
+        if (socket.handshake.query.gameID) {
+            gameID = socket.handshake.query.gameID;
+            if (gameID != 0) {
+                socket.join(gameID);
+                console.log('New socket connection for game: ', gameID);
+                
+                updatePlayers(gameID);
+            } else {
+                console.log('GameID is: ', gameID);
+            }
+        } else {
+            console.log('No gameID');
         }
-    } else {
-        console.log('No gameID');
-    }
+    });
 }
 
 /**
  * 
- * @param {Number} gameID 
+ * @param {number} gameID 
  */
 function updatePlayers(gameID) {
-    if (!isNaN(gameID)) {
-        // console.log(io ? true : false);
-        if (io) {
-            io.to(gameID).emit('refresh');
-        }
+    if (io) {
+        io.to(gameID).emit('refresh');
     }
 }
 
