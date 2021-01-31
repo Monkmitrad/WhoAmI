@@ -1,131 +1,255 @@
 const express = require('express');
 const router = new express.Router();
-const io = require('../controllers/io');
+const { body, header, validationResult } = require('express-validator');
 
-const dbHandler = require('../controllers/mongodb');
+const ioHandler = require('../controllers/io');
+const dbHandler = require('../controllers/dbHandler');
+const jwtHandler = require('../controllers/jwt');
+const config = require('../config');
 
-router.post('/api/create', async (req, res) => {
-	await dbHandler.create().then((gameID) => res.send({ response: gameID }));
+const baseURL = config.get('api_baseURL');
+
+/**
+ * create new game
+ */
+router.post(baseURL + 'create', async (req, res) => {
+	// trigger game creation in db
+	const gameID = await dbHandler.create();
+
+    // return gameID on success
+    if (gameID) {
+        res.json({ response: gameID });
+    } else {
+        res.status(500).json({response: 'Internal server error on creation'});
+    }
 });
 
-router.post('/api/id', async (req, res) => {
-	const id = req.body.gameID;
-	if (await dbHandler.check(id)) {
-		res.send({ response: true });
-	} else {
-		res.send({ response: false });
-	}
+/**
+ * login user
+ */
+router.post(baseURL + 'login',[
+    body('gameID').exists().isNumeric().trim().escape(),
+    body('playerName').exists().isLength({min: 3, max: 12}).trim().escape(),
+], async (req, res) => {
+    try {
+        validationResult(req).throw();
+
+        const gameID = req.body.gameID;
+        const playerName = req.body.playerName;
+
+        // check gameID
+        if (await dbHandler.id(gameID)) {
+            // on success check game status (has to be false)
+            if (await dbHandler.status(gameID) === false) {
+                // on success check validity of playerName
+                if (await dbHandler.name(gameID, playerName)) {
+                    // on success trigger player and jwt creation in db
+                    const jwt = await dbHandler.login(gameID, playerName);
+                    if (jwt) {
+                        // on success return jwt and socket id
+                        res.json({response: jwt});
+                        // update game via socket
+                        ioHandler.updatePlayers(gameID);
+                    } else {
+                        res.status(500).json({response: 'Internal server error on login'});
+                    }
+                } else {
+                    res.status(400).json({response: 'Username already taken'});
+                }
+            } else {
+                res.status(400).json({response: 'Game has already started'});
+            }
+        } else {
+            res.status(400).json({response: 'Invalid gameID'});
+        }
+    } catch (err) {
+        if (err.errors) {
+            res.status(400).json({response: err.errors[0].param + ' not valid'});
+        } else {
+            res.status(400).json({response: err});
+        }
+    }    
 });
 
-router.post('/api/add', async (req, res) => {
-	const playerName = req.body.playerName;
-	const playerID = req.body.playerID;
-	const gameID = req.body.gameID;
+/**
+ * make ready
+ */
+router.post(baseURL + 'ready', [
+    body('gameID').exists().isNumeric().trim().escape(),
+    body('playerName').exists().isLength({min: 3, max: 12}).trim().escape(),
+    body('status').exists().isBoolean().trim().escape(),
+    header('authorization').exists().isString().trim()
+], async (req, res) => {
+    try {
+        validationResult(req).throw();
 
-	await dbHandler.add(playerName, gameID, playerID).then(async (id) => {
-		// console.log(id),
-		await update(gameID).then(res.send({ response: id }));
-	});
+        const gameID = req.body.gameID;
+        const playerName = req.body.playerName;
+        const status = req.body.status;
+
+        // check jwt
+        if (jwtHandler.checkToken(req.header('Authorization'))) {
+            // on success check gameID
+            if (await dbHandler.id(gameID)) {
+                // on success check if token matches gameID and playerName
+                if (jwtHandler.verifyIdentity(req.header('Authorization'), gameID, playerName)) {
+                    // on success check game status (has to be false)
+                    if (await dbHandler.status(gameID) === false) {
+                        // on success trigger save in db
+                        await dbHandler.ready(gameID, playerName, status);
+                        res.json({response: 'Ready status set to ' + status});
+                        // on success update game via socket
+                        ioHandler.updatePlayers(gameID);
+                        // trigger ready check for all players
+                        if (await dbHandler.check(gameID)) {
+                            // all players ready, start game
+                            await dbHandler.start(gameID);
+                            ioHandler.updatePlayers(gameID);
+                        }
+                    } else {
+                        res.status(400).json({response: 'Game has already started'});
+                    }
+                } else {
+                    res.status(400).json({response: 'Parameters do not match'});
+                }
+            } else {
+                res.status(400).json({response: 'Invalid gameID'});
+            }
+        } else {
+            res.status(401).json({response: 'Invalid JWT'});
+        }
+    } catch (err) {
+        if (err.errors) {
+            res.status(400).json({response: err.errors[0].param + ' not valid'});
+        } else {
+            res.status(400).json({response: err});
+        }
+    }
 });
 
-router.post('/api/players', async (req, res) => {
-	const gameID = req.body.gameID;
-	res.send(await dbHandler.list(gameID));
+/**
+ * submit entry
+ */
+router.post(baseURL + 'submit',[
+    body('gameID').exists().isNumeric().trim().escape(),
+    body('playerName').exists().isLength({min: 3, max: 12}).trim().escape(),
+    body('entry').exists().notEmpty().trim().escape(),
+    header('authorization').exists().isString().trim()
+], async (req, res) => {
+    try {
+        validationResult(req).throw();
+
+        const gameID = req.body.gameID;
+        const playerName = req.body.playerName;
+        const entry = req.body.entry;
+
+        // check jwt
+        if (jwtHandler.checkToken(req.header('Authorization'))) {
+            // on success check gameID
+            if (await dbHandler.id(gameID)) {
+                // on success check if token matches gameID and assignedPlayerName
+                if (dbHandler.assigned(req.header('Authorization'), gameID, playerName)) {
+                    // on success check game status (has to be true)
+                    if (await dbHandler.status(gameID) === true) {
+                        // on success trigger save in db
+                        await dbHandler.submit(gameID, playerName, entry);
+                        // on success update game via socket
+                        ioHandler.updatePlayers(gameID);
+                        res.json({response: true});
+                        // trigger submit check for all players
+                        if (await dbHandler.guess(gameID)) {
+                            // all players submitted, start guessing
+                            ioHandler.startPlayers(gameID);
+                            console.log('Start guessing');
+                        }
+                    } else {
+                        res.status(400).json({response: 'Game has not started yet'});
+                    }
+                } else {
+                    res.status(400).json({response: 'Parameters do not match'});
+                }
+            } else {
+                res.status(400).json({response: 'Invalid gameID'});
+            }
+        } else {
+            res.status(401).json({response: 'Invalid JWT'});
+        }
+    } catch (err) {
+        if (err.errors) {
+            res.status(400).json({response: err.errors[0].param + ' not valid'});
+        } else {
+            res.status(400).json({response: err});
+        }
+    }	
 });
 
-router.post('/api/ready', async (req, res) => {
-	const id = req.body.id;
-	const status = req.body.status;
-	const gameID = req.body.gameID;
-	if (!(await dbHandler.gameStatus(gameID))) {
-		await dbHandler.ready(id, status, gameID);
-
-		await update(gameID).then(res.send({ response: status }));
-		if (await checkReady(gameID)) {
-			await dbHandler.gameReady(gameID).then(
-				await dbHandler.list(gameID).then(async (players) => {
-					const result = randomAssignment(players);
-
-					await dbHandler.assign(gameID, result);
-					await update(gameID);
-				})
-			);
-		}
-	}
+/**
+ * return gameData for player
+ */
+router.get(baseURL + 'data', [
+    header('authorization').exists().isString().trim()
+], async (req, res) => {
+    try {
+        validationResult(req).throw();
+        
+        // check JWT
+        if (jwtHandler.checkToken(req.header('Authorization'))) {
+            const playerName = jwtHandler.getJWTName(req.header('Authorization'));
+            const gameID = jwtHandler.getJWTID(req.header('Authorization'));
+            // on success check gameID
+            if (await dbHandler.id(gameID)) {
+                // on success return personalized gameData
+                res.json({response: await dbHandler.data(gameID, playerName)});
+            } else {
+                res.status(400).json({response: 'Invalid gameID'});
+            }
+        } else {
+            res.status(401).json({response: 'Invalid JWT'});
+        }
+    } catch (err) {
+        if (err.errors) {
+            res.status(400).json({response: err.errors[0].param + ' not valid'});
+        } else {
+            res.status(400).json({response: err});
+        }
+    }	
 });
 
-router.post('/api/submission', async (req, res) => {
-	// save submission to referenced user
-	const user = req.body.playerName;
-	const submissionText = req.body.submissionText;
-	const gameID = req.body.gameID;
+/**
+ * disconnect player from game
+ */
+router.post(baseURL + 'disconnect', [
+    body('gameID').exists().isNumeric().trim().escape(),
+    body('playerName').exists().isLength({min: 3, max: 12}).trim().escape(),
+    header('authorization').exists().isString().trim()
+], async (req, res) => {
+    try {
+        validationResult(req).throw();
 
-	await dbHandler.submit(user, submissionText, gameID).then(async () => {
-		await update(gameID).then(res.send({ response: true }));
-	});
+        // check JWT
+        if (jwtHandler.checkToken(req.header('Authorization'))) {
+            const playerName = jwtHandler.getJWTName(req.header('Authorization'));
+            const gameID = jwtHandler.getJWTID(req.header('Authorization'));
+            // on success check gameID
+            if (await dbHandler.id(gameID)) {
+                // on success return personalized gameData
+                res.json({response: await dbHandler.disconnect(gameID, playerName)});
+                console.log('Disconnected: ', playerName);
+                // on success update players via socket
+                ioHandler.updatePlayers(gameID);
+            } else {
+                res.status(400).json({response: 'Invalid gameID'});
+            }
+        } else {
+            res.status(401).json({response: 'Invalid JWT'});
+        }
+    } catch (err) {
+        if (err.errors) {
+            res.status(400).json({response: err.errors[0].param + ' not valid'});
+        } else {
+            res.status(400).json({response: err});
+        }
+    }
 });
-
-async function update(gameID) {
-	await dbHandler.list(gameID).then(async (players) => {
-		// console.log("Update");
-		io.updatePlayers(players);
-		io.startGame(await dbHandler.gameStatus(gameID));
-	});
-}
-
-async function checkReady(gameID) {
-	return await dbHandler.list(gameID).then((players) => {
-		if (players.length > 1) {
-			return players.every(isReady);
-		} else {
-			return false;
-		}
-	});
-}
-
-function isReady(element) {
-	return element.ready;
-}
-
-function randomAssignment(players) {
-	const copyArray = [...players];
-	const returnArray = new Array(players.length);
-
-	while (copyArray.length > 0) {
-		if (copyArray.length === 1) {
-			// Uneven playercount =>  player 1 gets this player too
-			console.log('Uneven');
-			const changedPlayer = copyArray[0];
-			returnArray[players.indexOf(copyArray[0])] = returnArray[0];
-			returnArray[0] = changedPlayer.name;
-
-			return returnArray;
-
-		}
-		const index = getRandomExcept(copyArray.length, 0);
-
-		const randomPlayer = copyArray[index];
-		returnArray[players.indexOf(copyArray[0])] = randomPlayer.name;
-		returnArray[players.indexOf(randomPlayer)] = copyArray[0].name;
-		copyArray.splice(index, 1);
-		copyArray.shift();
-	}
-	return returnArray;
-}
-
-function getRandomExcept(length, except) {
-	if (length <= 0) {
-		return null;
-	} else if (length === 1) {
-		if (0 === except) return null;
-	}
-	var n = Math.floor(Math.random() * length);
-
-	if (n === except) {
-		// n = (n + Math.floor(Math.random() * length)) % length;
-		return getRandomExcept(length, except);
-	}
-	return n;
-}
 
 module.exports = router;

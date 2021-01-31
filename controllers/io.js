@@ -1,20 +1,49 @@
 let io = undefined;
 
-const socketHandler = function(_io, socket) {
-    console.log('New Socket connection');
+/**
+ * 
+ * @param {*} _io 
+ * @param {*} socket 
+ */
+function socketHandler(_io, socket) {
+    // console.log('New Socket connection');
     io = _io;
+    
+    io.on('connection', (socket) => {
+        if (socket.handshake.query.gameID) {
+            gameID = socket.handshake.query.gameID;
+            if (gameID != 0) {
+                socket.join(gameID);
+                console.log('New socket connection for game: ', gameID);
+                
+                updatePlayers(gameID);
+            } else {
+                console.log('GameID is: ', gameID);
+            }
+        } else {
+            console.log('No gameID');
+        }
+    });
 }
 
-function updatePlayers(players) {
-    io.emit('players', players);
+/**
+ * 
+ * @param {number} gameID 
+ */
+function updatePlayers(gameID) {
+    if (io) {
+        io.to(gameID).emit('refresh');
+    }
 }
 
-function startGame(status) {
-    io.emit('status', status);
+function startPlayers(gameID) {
+    if (io) {
+        io.to(gameID).emit('start');
+    }
 }
 
 module.exports = {
     socketHandler,
     updatePlayers,
-    startGame
+    startPlayers
 };
